@@ -111,6 +111,7 @@ jobs:
           call install.cmd
           if not "%ERRORLEVEL%"=="14" ( echo expected exit code 14, got %ERRORLEVEL% & exit /b 1 )
           echo wrong-architecture check OK
+          exit /b 0
 
   windows-auth-test:
     runs-on: windows-latest
@@ -159,5 +160,6 @@ jobs:
             $env:SQL_MCP_DRIVER = "mssql-python"; Remove-Item Env:SQL_MCP_ODBC_DRIVER -ErrorAction SilentlyContinue
             $out = & C:\sqlmcp\Scripts\sql-mcp.exe --check | Out-String
             Write-Output $out
-            if ($LASTEXITCODE -ne 1 -or $out -notmatch "No usable SQL Server driver") { Write-Error "expected a clear driver error"; exit 1 }
+            if ($LASTEXITCODE -ne 1 -or $out -notmatch "driver=mssql-python requested") { Write-Error "expected a clear driver error"; exit 1 }
           }
+          exit 0

@@ -444,6 +444,17 @@ def test_resolve_driver_unavailable(monkeypatch, requested, odbc, has_mssql):
         drivers.resolve_driver(ConnectionProfile(name="x", server="s", auth="windows", driver=requested))
 
 
+def test_resolve_driver_mssql_python_missing_message(monkeypatch):
+    from sql_mcp import drivers
+    monkeypatch.setattr(drivers, "_import_pyodbc", lambda: _FakePyodbc(["ODBC Driver 17 for SQL Server"]))
+    monkeypatch.setattr(drivers, "_import_mssql_python", lambda: None)
+    with pytest.raises(drivers.DriverUnavailableError, match="driver=mssql-python requested.*driver=auto"):
+        drivers.resolve_driver(ConnectionProfile(name="x", server="s", auth="windows", driver="mssql-python"))
+    # auto still works through the ODBC driver
+    p = ConnectionProfile(name="x", server="s", auth="windows")
+    assert drivers.resolve_driver(p) == ("pyodbc", "ODBC Driver 17 for SQL Server")
+
+
 def test_resolve_driver_explicit_odbc_name(monkeypatch):
     from sql_mcp import drivers
     monkeypatch.setattr(drivers, "_import_pyodbc", lambda: _FakePyodbc([]))
