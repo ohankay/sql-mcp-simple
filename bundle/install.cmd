@@ -62,8 +62,12 @@ echo [3/4] Paketler kuruluyor (offline)...
 "%SQL_MCP_HOME%\Scripts\python.exe" -m pip install --no-index --find-links "%HERE%wheelhouse" --upgrade --disable-pip-version-check --quiet "%PKG%"
 if errorlevel 1 ( echo [HATA] Paket kurulumu basarisiz. & exit /b 12 )
 
-rem 4) Dogrulama
+rem 4) Dogrulama: bagimliliklar tutarli mi, Windows modulleri (pywin32) yuklenebiliyor mu?
 echo [4/4] Dogrulama...
+"%SQL_MCP_HOME%\Scripts\python.exe" -m pip check --disable-pip-version-check
+if errorlevel 1 ( echo [HATA] Eksik veya uyumsuz paket var ^(yukaridaki liste^). Klasoru silip tekrar kurun: %SQL_MCP_HOME% & exit /b 16 )
+"%SQL_MCP_HOME%\Scripts\python.exe" -c "import pywintypes, click, pyodbc, mcp.server.fastmcp, sql_mcp.server"
+if errorlevel 1 ( echo [HATA] Python modulleri yuklenemedi ^(pywin32 / mcp^). Klasoru silip tekrar kurun: %SQL_MCP_HOME% & exit /b 16 )
 "%SQL_MCP_HOME%\Scripts\sql-mcp.exe" --version
 if errorlevel 1 ( echo [HATA] sql-mcp calismiyor. & exit /b 13 )
 

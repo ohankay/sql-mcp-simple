@@ -18,9 +18,15 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+from packaging.tags import compatible_tags, cpython_tags
+from packaging.utils import canonicalize_name, parse_wheel_filename
+
 ROOT = Path(__file__).resolve().parent.parent
 PYTHON_VERSIONS = ("3.10", "3.11", "3.12", "3.13", "3.14")
 TOP = "sql-mcp-simple"
+
+# Packages that must be in every bundle (the Windows-only ones are the easy ones to lose).
+REQUIRED = ("sql-mcp-simple", "mcp", "pyodbc", "pywin32", "click", "uvicorn", "pydantic-core")
 
 # arch -> (uv target triple, pip platform tag, extras to install)
 ARCHES = {
@@ -49,6 +55,35 @@ def _windows_requirements(arch: str, version: str, out: Path) -> Path:
     return req
 
 
+def _verify(wheelhouse: Path, req: Path, arch: str, version: str) -> None:
+    """Every pinned package must have a wheel installable on this Python version + architecture.
+
+    Never skip silently: report the exact package and the wheel tag that would be needed.
+    """
+    _, platform_tag, extras = ARCHES[arch]
+    py = tuple(int(x) for x in version.split("."))
+    target = set(cpython_tags(py, platforms=[platform_tag])) | set(compatible_tags(py, platforms=[platform_tag]))
+    have: dict[str, set[str]] = {}
+    for whl in wheelhouse.glob("*.whl"):
+        name, ver, _, tags = parse_wheel_filename(whl.name)
+        if tags & target:
+            have.setdefault(canonicalize_name(name), set()).add(str(ver))
+    pins = {}
+    for line in req.read_text(encoding="utf-8").splitlines():
+        line = line.split(";")[0].split("#")[0].strip()
+        if "==" in line:
+            name, ver = line.split("==", 1)
+            pins[canonicalize_name(name.split("[")[0])] = ver.strip()
+    missing = [f"{n}=={v}" for n, v in pins.items() if v not in have.get(n, set())]
+    missing += [n for n in REQUIRED if canonicalize_name(n) not in have]
+    if extras and "mssql-python" not in have:
+        missing.append("mssql-python")
+    if missing:
+        tag = f"cp{py[0]}{py[1]}-cp{py[0]}{py[1]}-{platform_tag} (or py3-none-any / abi3)"
+        raise SystemExit(f"[{arch} / Python {version}] no compatible wheel for: {', '.join(missing)} "
+                         f"- needed tag: {tag}")
+
+
 def _pip(*args: str) -> None:
     subprocess.run([sys.executable, "-m", "pip", *args, "--disable-pip-version-check", "-q"], check=True)
 
@@ -64,6 +99,8 @@ def build(arch: str) -> Path:
             req = _windows_requirements(arch, version, Path(tmp))
             _pip("download", "-r", str(req), "--no-deps", "--platform", platform_tag, "--python-version",
                  version, "--only-binary=:all:", "-d", str(wheelhouse))
+        for version in PYTHON_VERSIONS:
+            _verify(wheelhouse, Path(tmp) / f"requirements-{arch}-{version}.txt", arch, version)
 
         out.parent.mkdir(exist_ok=True)
         if out.exists():

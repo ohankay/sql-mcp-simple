@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sql-mcp-simple"
-version = "1.0.0"
+version = "1.1.0"
 description = "MCP server for Microsoft SQL Server 2017/2019/2022 - queries, DML/DDL, stored procedures, SQL Agent jobs, admin. SQL or Windows authentication."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,13 +15,15 @@ dependencies = [
     "mcp>=1.10,<2",
     "anyio>=4",
     "pyodbc>=5.0",
+    # mcp needs pywin32 (pywintypes) on Windows; declared explicitly so every install path gets it.
+    "pywin32>=306; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
 # Microsoft's driver with a bundled ODBC library (64-bit only). Without it an installed
 # SQL Server ODBC driver is used through pyodbc (Windows always ships the "SQL Server" driver).
 bundled-driver = ["mssql-python>=1.0"]
-dev = ["pytest>=8", "uv>=0.5", "mssql-python>=1.0"]
+dev = ["pytest>=8", "uv>=0.5", "packaging>=23"]
 
 [project.scripts]
 sql-mcp = "sql_mcp.__main__:main"

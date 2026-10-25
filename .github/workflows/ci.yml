@@ -36,7 +36,7 @@ jobs:
           echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/$(lsb_release -rs)/prod $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/mssql-release.list
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev,bundled-driver]"
       - name: Wait for SQL Server
         run: |
           for port in 14332 14317; do
@@ -53,10 +53,22 @@ jobs:
 
   unit-windows:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, python: "3.12", extras: "dev,bundled-driver" }
+          - { arch: x64, python: "3.14", extras: "dev,bundled-driver" }
+          - { arch: x86, python: "3.14", extras: "dev" }      # 32-bit: no mssql-python build
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - run: pip install -e ".[dev]"
+          python-version: ${{ matrix.python }}
+          architecture: ${{ matrix.arch }}
+      - run: pip install -e ".[${{ matrix.extras }}]"
+      - name: Dependency check (pywin32 / click present and consistent)
+        run: |
+          pip check
+          python -c "import pywintypes, click, pyodbc, mcp.server.fastmcp, struct; print('deps OK', struct.calcsize('P') * 8, 'bit')"
       - run: pytest -v tests/test_unit.py tests/test_e2e_stdio.py

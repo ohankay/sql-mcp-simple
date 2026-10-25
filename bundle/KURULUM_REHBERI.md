@@ -42,7 +42,7 @@ cmd /c install.cmd; "EXIT=$LASTEXITCODE"
 - Çıktıda `KURULUM TAMAM` ve `EXIT=0` görmelisin.
 - Kurulum yeri: `%USERPROFILE%\.sql-mcp`. Komut yolu: `%USERPROFILE%\.sql-mcp\Scripts\sql-mcp.exe`.
 - Çıktının ilk satırı Python'u ve mimariyi gösterir, örneğin `Python: py -3.12-64 (64-bit, paket: x64)`.
-- Hata kodları: `10` = uygun Python yok, `11` = venv oluşturulamadı, `12` = paket kurulamadı, `13` = komut çalışmadı, `14` = zip ile Python'un mimarisi farklı (diğer zip gerekiyor), `15` = mevcut kurulum farklı mimaride. Ayrıntı için "Sorun giderme" bölümüne bak.
+- Hata kodları: `10` = uygun Python yok, `11` = venv oluşturulamadı, `12` = paket kurulamadı, `13` = komut çalışmadı, `14` = zip ile Python'un mimarisi farklı (diğer zip gerekiyor), `15` = mevcut kurulum farklı mimaride, `16` = kurulum sonrası doğrulama başarısız (eksik/uyumsuz paket). Ayrıntı için "Sorun giderme" bölümüne bak.
 
 ### Adım 2: Bağlantı bilgilerini kullanıcıdan al
 
@@ -126,6 +126,7 @@ Kurulum burada biter.
 | EXIT 11 | `%USERPROFILE%` yazılamıyor ya da antivirüs engelliyor. `set SQL_MCP_HOME=D:\Araclar\sql-mcp` ile başka bir klasöre kurmayı deneyin. |
 | EXIT 12 | `wheelhouse` klasörü eksik veya Python sürümü desteklenmiyor (3.15+). Zip'i yeniden açın ya da Python 3.12 kullanın. |
 | EXIT 14 | Zip ile Python'un mimarisi farklı (ör. x64 zip, 32-bit Python). Mesajda adı geçen diğer zip'i indirip onunla kurun. |
+| EXIT 16 veya `No module named 'pywintypes'` | Eski/yarım kalmış bir kurulum var. `%USERPROFILE%\.sql-mcp` klasörünü silip `install.cmd`'yi tekrar çalıştırın. Elle `pip install` ile paket ekleyip çıkarmayın; paketler zip'teki `wheelhouse` içinden kurulmalı. |
 | EXIT 15 | `%USERPROFILE%\.sql-mcp` içinde başka mimaride eski bir kurulum var. Klasörü silip `install.cmd`'yi tekrar çalıştırın. |
 | 32-bit'te bağlantı | 32-bit pakette Microsoft'un gömülü sürücüsü (`mssql-python`) yoktur, kurulu ODBC sürücüsü kullanılır. Windows'un kendi "SQL Server" sürücüsü her zaman vardır ve Windows Authentication ile çalışır. Daha iyi tip desteği için "ODBC Driver 18 for SQL Server" önerilir (64-bit kurulumu 32-bit sürücüyü de içerir). |
 | `Login failed for user 'DOMAIN\kullanici'` | Windows kullanıcınızın SQL Server'da login'i yok. DBA'dan yetki isteyin. |
