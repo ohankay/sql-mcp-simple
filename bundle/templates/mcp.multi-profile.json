@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "sql": {
+      "type": "stdio",
+      "command": "${userHome}\\.sql-mcp\\Scripts\\sql-mcp.exe",
+      "env": {
+        "SQL_MCP_CONFIG": "${userHome}\\.sql-mcp\\connections.json"
+      }
+    }
+  }
+}

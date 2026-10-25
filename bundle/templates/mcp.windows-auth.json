@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "sql": {
+      "type": "stdio",
+      "command": "${userHome}\\.sql-mcp\\Scripts\\sql-mcp.exe",
+      "env": {
+        "SQL_MCP_SERVER": "SUNUCU\\INSTANCE",
+        "SQL_MCP_AUTH": "windows",
+        "SQL_MCP_DATABASE": "master"
+      }
+    }
+  }
+}

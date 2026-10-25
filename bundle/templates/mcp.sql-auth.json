@@ -1,0 +1,18 @@
+{
+  "inputs": [
+    { "type": "promptString", "id": "sql-password", "description": "SQL Server sifresi", "password": true }
+  ],
+  "servers": {
+    "sql": {
+      "type": "stdio",
+      "command": "${userHome}\\.sql-mcp\\Scripts\\sql-mcp.exe",
+      "env": {
+        "SQL_MCP_SERVER": "SUNUCU,1433",
+        "SQL_MCP_AUTH": "sql",
+        "SQL_MCP_USER": "KULLANICI",
+        "SQL_MCP_PASSWORD": "${input:sql-password}",
+        "SQL_MCP_DATABASE": "master"
+      }
+    }
+  }
+}

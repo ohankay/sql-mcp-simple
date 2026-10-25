@@ -469,3 +469,24 @@ def test_readme_job_example_builds():
          "repeat_every_minutes": 15, "start_time": "08:00", "end_time": "18:00"},
     ])
     assert "Gece ETL" in params and 62 in params
+
+
+# ---------------------------------------------------------------- Windows bundle files
+
+def test_bundle_templates_are_valid():
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent / "bundle"
+    for tpl in (root / "templates").glob("*.json"):
+        data = json.loads(tpl.read_text(encoding="utf-8"))
+        if tpl.name.startswith("mcp."):
+            sql = data["servers"]["sql"]
+            assert sql["type"] == "stdio" and sql["command"].endswith("sql-mcp.exe")
+            assert "SQL_MCP_PASSWORD" not in sql["env"] or sql["env"]["SQL_MCP_PASSWORD"] == "${input:sql-password}"
+    assert (root / "templates" / "sql-dba.agent.md").read_text(encoding="utf-8").startswith("---")
+
+
+def test_install_cmd_uses_crlf_and_offline_install():
+    from pathlib import Path
+    raw = (Path(__file__).resolve().parent.parent / "bundle" / "install.cmd").read_bytes()
+    assert raw.count(b"\r\n") == raw.count(b"\n")  # cmd.exe needs CRLF line endings
+    assert b"--no-index" in raw and b"wheelhouse" in raw

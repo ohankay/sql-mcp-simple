@@ -1,0 +1,27 @@
+{
+  "default": "dev",
+  "connections": {
+    "dev": {
+      "server": "DEVSQL01",
+      "auth": "windows",
+      "database": "AppDb"
+    },
+    "test": {
+      "server": "TESTSQL01\\SQL2017",
+      "auth": "sql",
+      "user": "app_user",
+      "password_env": "SQL_TEST_PASSWORD",
+      "database": "AppDb",
+      "query_timeout": 600
+    },
+    "prod-read": {
+      "server": "PRODSQL01,1433",
+      "auth": "windows",
+      "database": "AppDb",
+      "readonly": true,
+      "max_rows": 200,
+      "encrypt": "yes",
+      "trust_server_certificate": false
+    }
+  }
+}
