@@ -31,11 +31,15 @@ sql-mcp ise:
 
 ### Hazır paket (önerilen, internet gerekmez)
 
-1. **[sql-mcp-simple-windows-x64.zip](https://github.com/ohankay/sql-mcp-simple/raw/main/release/sql-mcp-simple-windows-x64.zip)** dosyasını indirip bir klasöre açın.
+1. Python'unuza uygun paketi indirip bir klasöre açın:
+   - **64-bit Python:** [sql-mcp-simple-windows-x64.zip](https://github.com/ohankay/sql-mcp-simple/raw/main/release/sql-mcp-simple-windows-x64.zip)
+   - **32-bit Python:** [sql-mcp-simple-windows-x86.zip](https://github.com/ohankay/sql-mcp-simple/raw/main/release/sql-mcp-simple-windows-x86.zip)
+
+   Python'unuzun kaç bit olduğunu `py -c "import struct; print(struct.calcsize('P')*8)"` komutu gösterir. Yanlış paketi seçerseniz kurulum bunu söyler.
 2. Klasörü VS Code'da açın, Copilot Chat → **Agent** moduna şunu yazın:
    `KURULUM_REHBERI.md dosyasını oku ve "Ajan için kurulum adımları" bölümünü sırayla uygula.`
 
-Paketin içinde Python 3.10–3.14 için gereken tüm bağımlılıklar (`wheelhouse`), `install.cmd`, kurulum rehberi ve VS Code şablonları vardır. Repodaki bu zip her değişiklikte GitHub Actions üzerinde gerçek bir Windows makinede test edilir: 5 Python sürümünde offline kurulum ve SQL Server Express'e Windows Authentication ile bağlantı. Zip'i yeniden üretmek için: `pip install uv && python scripts/build_bundle.py`.
+Paketin içinde Python 3.10–3.14 için gereken tüm bağımlılıklar (`wheelhouse`), `install.cmd`, kurulum rehberi ve VS Code şablonları vardır. Repodaki iki zip de her değişiklikte GitHub Actions üzerinde gerçek Windows makinelerde test edilir: 64 ve 32 bit için 5 Python sürümünde offline kurulum, yanlış mimari tespiti ve SQL Server Express'e Windows Authentication ile bağlantı. Zip'i yeniden üretmek için: `pip install uv && python scripts/build_bundle.py`.
 
 ### Elle kurulum (internet varsa)
 
@@ -43,13 +47,13 @@ Gereksinim: Python 3.10–3.14.
 
 ```bat
 py -m venv %USERPROFILE%\.sql-mcp
-%USERPROFILE%\.sql-mcp\Scripts\pip install git+https://github.com/ohankay/sql-mcp-simple.git
+%USERPROFILE%\.sql-mcp\Scripts\pip install "sql-mcp-simple[bundled-driver] @ git+https://github.com/ohankay/sql-mcp-simple.git"
 ```
 
 Sürücü: Ekstra kurulum **gerekmez**. Sırayla şunlar denenir:
 
 1. "ODBC Driver 18 / 17 for SQL Server" (SSMS ile genelde zaten kurulu gelir) → `pyodbc`
-2. `mssql-python`: Microsoft'un sürücüsü. ODBC kütüphanesi wheel'in içinde gelir, sisteme hiçbir şey kurmaz.
+2. `mssql-python`: Microsoft'un sürücüsü. ODBC kütüphanesi wheel'in içinde gelir, sisteme hiçbir şey kurmaz. Sadece 64-bit; elle kurulumda `[bundled-driver]` ile gelir, 32-bit Python'da kullanılmaz.
 3. Windows'un kendi eski "SQL Server" ODBC sürücüsü (son çare)
 
 Bağlantıyı test etmek için:

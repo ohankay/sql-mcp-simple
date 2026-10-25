@@ -97,7 +97,9 @@ def resolve_driver(profile: ConnectionProfile) -> tuple[str, str | None]:
     if profile.driver == "auto" and pyodbc is not None and odbc_name:
         return "pyodbc", odbc_name
     raise DriverUnavailableError(
-        "No usable SQL Server driver. Run: pip install mssql-python   (or install pyodbc + ODBC Driver 18)"
+        "No usable SQL Server driver: mssql-python is not installed (it has no 32-bit build) and no "
+        "SQL Server ODBC driver was found. Install 'ODBC Driver 18 for SQL Server', or on 64-bit "
+        "Python run: pip install mssql-python"
     )
 
 

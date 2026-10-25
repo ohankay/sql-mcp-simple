@@ -1,57 +1,65 @@
 name: Windows bundle
 
-# Tests the committed download package release/sql-mcp-simple-windows-x64.zip on real Windows:
-# offline install with install.cmd on every supported Python, MCP stdio smoke test, and Windows
-# authentication against SQL Server Express. Rebuild the zip with: python scripts/build_bundle.py
+# Tests the committed download packages on real Windows, for 64-bit and 32-bit Python:
+#   release/sql-mcp-simple-windows-x64.zip, release/sql-mcp-simple-windows-x86.zip
+# freshness vs. source, offline install with install.cmd on every supported Python, MCP stdio
+# smoke test, wrong-architecture detection, and Windows authentication against SQL Server Express.
+# Rebuild the zips with: pip install uv && python scripts/build_bundle.py
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["release/**", "bundle/**", "scripts/build_bundle.py", ".github/workflows/bundle.yml"]
+    paths: ["release/**", "bundle/**", "scripts/build_bundle.py", "src/**", "pyproject.toml",
+            ".github/workflows/bundle.yml"]
 
 jobs:
   freshness:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: The zip must contain the current source
+      - name: The zips must contain the current source
         shell: python
         run: |
           import io, pathlib, sys, zipfile
           norm = lambda b: b.replace(b"\r\n", b"\n")
-          outer = zipfile.ZipFile("release/sql-mcp-simple-windows-x64.zip")
-          names = outer.namelist()
           stale = []
-          for f in ("install.cmd", "KURULUM_REHBERI.md"):
-              if norm(outer.read(f"sql-mcp-simple/{f}")) != norm(pathlib.Path("bundle", f).read_bytes()):
-                  stale.append(f)
-          whl = next(n for n in names if n.startswith("sql-mcp-simple/wheelhouse/sql_mcp_simple-"))
-          inner = zipfile.ZipFile(io.BytesIO(outer.read(whl)))
-          for src in pathlib.Path("src/sql_mcp").glob("*.py"):
-              if norm(inner.read(f"sql_mcp/{src.name}")) != norm(src.read_bytes()):
-                  stale.append(str(src))
+          for arch in ("x64", "x86"):
+              outer = zipfile.ZipFile(f"release/sql-mcp-simple-windows-{arch}.zip")
+              names = outer.namelist()
+              if outer.read("sql-mcp-simple/bundle_arch.txt").decode() != arch:
+                  stale.append(f"{arch}: bundle_arch.txt")
+              for f in ("install.cmd", "KURULUM_REHBERI.md"):
+                  if norm(outer.read(f"sql-mcp-simple/{f}")) != norm(pathlib.Path("bundle", f).read_bytes()):
+                      stale.append(f"{arch}: {f}")
+              whl = next(n for n in names if n.startswith("sql-mcp-simple/wheelhouse/sql_mcp_simple-"))
+              inner = zipfile.ZipFile(io.BytesIO(outer.read(whl)))
+              for src in pathlib.Path("src/sql_mcp").glob("*.py"):
+                  if norm(inner.read(f"sql_mcp/{src.name}")) != norm(src.read_bytes()):
+                      stale.append(f"{arch}: {src}")
           if stale:
               sys.exit("zip is stale, run scripts/build_bundle.py: " + ", ".join(stale))
-          print("zip is up to date")
+          print("zips are up to date")
 
   install-test:
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
+        arch: [x64, x86]
         python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+          architecture: ${{ matrix.arch }}
       - name: Unzip
         shell: pwsh
-        run: Expand-Archive release\sql-mcp-simple-windows-x64.zip -DestinationPath C:\bundle
+        run: Expand-Archive release\sql-mcp-simple-windows-${{ matrix.arch }}.zip -DestinationPath C:\bundle
       - name: Offline install with install.cmd (no network to PyPI)
         shell: cmd
         env:
@@ -70,7 +78,7 @@ jobs:
           & C:\sqlmcp\Scripts\sql-mcp.exe --check | Out-String | Write-Output
           if ($LASTEXITCODE -ne 1) { Write-Error "--check without config must exit 1"; exit 1 }
           @'
-          import asyncio, json
+          import asyncio, json, struct
           from mcp import ClientSession, StdioServerParameters
           from mcp.client.stdio import stdio_client
 
@@ -82,46 +90,74 @@ jobs:
                   assert len(tools) == 30, tools
                   res = json.loads((await s.call_tool("execute_sql", {"sql": "SELECT 1"})).content[0].text)
                   assert res["success"] is False and "SQL_MCP_SERVER" in res["errors"][0]["message"], res
-              print("stdio OK,", len(tools), "tools")
+              print("stdio OK,", len(tools), "tools,", struct.calcsize("P") * 8, "bit")
 
           asyncio.run(main())
           '@ | Set-Content smoke.py
           & C:\sqlmcp\Scripts\python.exe smoke.py
           if ($LASTEXITCODE -ne 0) { exit 1 }
-          $v = & C:\sqlmcp\Scripts\python.exe -c "import sys; print('%d.%d' % sys.version_info[:2])"
-          if ($v -ne "${{ matrix.python }}") { Write-Error "venv uses Python $v, expected ${{ matrix.python }}"; exit 1 }
+          $info = & C:\sqlmcp\Scripts\python.exe -c "import struct, sys; print('%d.%d-%d' % (sys.version_info[0], sys.version_info[1], struct.calcsize('P') * 8))"
+          $bits = if ("${{ matrix.arch }}" -eq "x86") { "32" } else { "64" }
+          if ($info -ne "${{ matrix.python }}-$bits") { Write-Error "venv is $info, expected ${{ matrix.python }}-$bits"; exit 1 }
+      - name: Wrong-architecture package is rejected with a clear message
+        shell: cmd
+        env:
+          SQL_MCP_HOME: C:\sqlmcp-wrong
+          SQL_MCP_PYTHON: python
+        run: |
+          if "${{ matrix.arch }}"=="x64" (set OTHER=x86) else (set OTHER=x64)
+          powershell -Command "Expand-Archive release\sql-mcp-simple-windows-%OTHER%.zip -DestinationPath C:\other"
+          cd /d C:\other\sql-mcp-simple
+          call install.cmd
+          if not "%ERRORLEVEL%"=="14" ( echo expected exit code 14, got %ERRORLEVEL% & exit /b 1 )
+          echo wrong-architecture check OK
 
   windows-auth-test:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, x86]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          architecture: ${{ matrix.arch }}
       - name: Install SQL Server Express
         shell: pwsh
         run: |
           choco install sql-server-express -y --no-progress
           if ($LASTEXITCODE -ne 0) { exit 1 }
-      - name: Install bundle
+      - name: Install bundle (Python found automatically, no SQL_MCP_PYTHON)
         shell: cmd
         env:
           SQL_MCP_HOME: C:\sqlmcp
         run: |
-          powershell -Command "Expand-Archive release\sql-mcp-simple-windows-x64.zip -DestinationPath C:\bundle"
+          powershell -Command "Expand-Archive release\sql-mcp-simple-windows-${{ matrix.arch }}.zip -DestinationPath C:\bundle"
           cd /d C:\bundle\sql-mcp-simple
           call install.cmd
           if errorlevel 1 exit /b 1
-      - name: Windows authentication - all drivers
+      - name: Windows authentication - every driver available for this architecture
         shell: pwsh
         run: |
           $env:SQL_MCP_SERVER = "localhost\SQLEXPRESS"
           $env:SQL_MCP_AUTH = "windows"
-          foreach ($drv in @("auto", "mssql-python", "pyodbc")) {
-            $env:SQL_MCP_DRIVER = $drv
+          $cases = @(@{driver="auto"; odbc=$null}, @{driver="pyodbc"; odbc=$null}, @{driver="pyodbc"; odbc="SQL Server"})
+          if ("${{ matrix.arch }}" -eq "x64") { $cases += @{driver="mssql-python"; odbc=$null} }
+          foreach ($c in $cases) {
+            $env:SQL_MCP_DRIVER = $c.driver
+            if ($c.odbc) { $env:SQL_MCP_ODBC_DRIVER = $c.odbc } else { Remove-Item Env:SQL_MCP_ODBC_DRIVER -ErrorAction SilentlyContinue }
             $out = & C:\sqlmcp\Scripts\sql-mcp.exe --check | Out-String
-            Write-Output "== driver=$drv =="; Write-Output $out
-            if ($LASTEXITCODE -ne 0) { Write-Error "Windows auth failed with driver $drv"; exit 1 }
+            Write-Output "== driver=$($c.driver) odbc=$($c.odbc) =="; Write-Output $out
+            if ($LASTEXITCODE -ne 0) { Write-Error "Windows auth failed: driver=$($c.driver) odbc=$($c.odbc)"; exit 1 }
             $info = ($out | ConvertFrom-Json).connections.default.server
             if ($info.auth_scheme -notin @("NTLM", "KERBEROS")) { Write-Error "unexpected auth_scheme $($info.auth_scheme)"; exit 1 }
+          }
+          if ("${{ matrix.arch }}" -eq "x86") {
+            # 32-bit has no mssql-python: requesting it must fail with a clear message, not crash
+            $env:SQL_MCP_DRIVER = "mssql-python"; Remove-Item Env:SQL_MCP_ODBC_DRIVER -ErrorAction SilentlyContinue
+            $out = & C:\sqlmcp\Scripts\sql-mcp.exe --check | Out-String
+            Write-Output $out
+            if ($LASTEXITCODE -ne 1 -or $out -notmatch "No usable SQL Server driver") { Write-Error "expected a clear driver error"; exit 1 }
           }

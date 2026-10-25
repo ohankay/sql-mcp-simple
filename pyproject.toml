@@ -15,11 +15,13 @@ dependencies = [
     "mcp>=1.10,<2",
     "anyio>=4",
     "pyodbc>=5.0",
-    "mssql-python>=1.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "uv>=0.5"]
+# Microsoft's driver with a bundled ODBC library (64-bit only). Without it an installed
+# SQL Server ODBC driver is used through pyodbc (Windows always ships the "SQL Server" driver).
+bundled-driver = ["mssql-python>=1.0"]
+dev = ["pytest>=8", "uv>=0.5", "mssql-python>=1.0"]
 
 [project.scripts]
 sql-mcp = "sql_mcp.__main__:main"

@@ -2,7 +2,11 @@
 
 ## Kullanıcı için (30 saniye)
 
-1. Zip'i bir klasöre açın, örneğin `C:\Araclar\sql-mcp-simple`.
+1. Python'unuza uygun zip'i indirin ve bir klasöre açın, örneğin `C:\Araclar\sql-mcp-simple`:
+   - **64-bit Python** (çoğu bilgisayar): `sql-mcp-simple-windows-x64.zip`
+   - **32-bit Python**: `sql-mcp-simple-windows-x86.zip`
+
+   Hangisi olduğunu bilmiyorsanız: `py -c "import struct; print(struct.calcsize('P')*8)"` komutu `64` veya `32` yazar. Yanlış zip'i seçerseniz kurulum bunu söyler.
 2. VS Code'da **File → Open Folder** ile bu klasörü açın.
 3. Copilot Chat'i açın, modu **Agent** yapın ve şunu yazın:
 
@@ -11,7 +15,7 @@
 4. Ajan size SQL Server adresini ve bağlantı tipini soracak, kurulumu kendisi yapacak.
    **Şifrenizi sohbete asla yazmayın.** Şifreyi VS Code ilk başlatmada güvenli bir kutuda soracak.
 
-Gereksinimler: Windows 10/11 x64, Python 3.10–3.14 (`py --version` ile kontrol edin). İnternet gerekmez, tüm paketler `wheelhouse` klasöründe.
+Gereksinimler: Windows 10/11 (64 veya 32 bit), Python 3.10–3.14 (`py --version` ile kontrol edin). İnternet gerekmez, tüm paketler `wheelhouse` klasöründe.
 
 Not: Kurulum sırasında terminalde bir kez `install.cmd` çalışır. Kurulumdan sonra SQL işlemleri için PowerShell veya sqlcmd hiç kullanılmaz.
 
@@ -37,7 +41,8 @@ cmd /c install.cmd; "EXIT=$LASTEXITCODE"
 
 - Çıktıda `KURULUM TAMAM` ve `EXIT=0` görmelisin.
 - Kurulum yeri: `%USERPROFILE%\.sql-mcp`. Komut yolu: `%USERPROFILE%\.sql-mcp\Scripts\sql-mcp.exe`.
-- Hata kodları: `10` = uygun Python yok, `11` = venv oluşturulamadı, `12` = paket kurulamadı, `13` = komut çalışmadı. Ayrıntı için "Sorun giderme" bölümüne bak.
+- Çıktının ilk satırı Python'u ve mimariyi gösterir, örneğin `Python: py -3.12-64 (64-bit, paket: x64)`.
+- Hata kodları: `10` = uygun Python yok, `11` = venv oluşturulamadı, `12` = paket kurulamadı, `13` = komut çalışmadı, `14` = zip ile Python'un mimarisi farklı (diğer zip gerekiyor), `15` = mevcut kurulum farklı mimaride. Ayrıntı için "Sorun giderme" bölümüne bak.
 
 ### Adım 2: Bağlantı bilgilerini kullanıcıdan al
 
@@ -120,6 +125,9 @@ Kurulum burada biter.
 | `install.cmd` → EXIT 10 | Python 3.10–3.14 yok veya PATH'te değil. Python 3.12'yi kurumsal yazılım merkezinden ya da python.org'dan kurun ("Add to PATH" ve "py launcher" seçili olsun), VS Code'u kapatıp açın. |
 | EXIT 11 | `%USERPROFILE%` yazılamıyor ya da antivirüs engelliyor. `set SQL_MCP_HOME=D:\Araclar\sql-mcp` ile başka bir klasöre kurmayı deneyin. |
 | EXIT 12 | `wheelhouse` klasörü eksik veya Python sürümü desteklenmiyor (3.15+). Zip'i yeniden açın ya da Python 3.12 kullanın. |
+| EXIT 14 | Zip ile Python'un mimarisi farklı (ör. x64 zip, 32-bit Python). Mesajda adı geçen diğer zip'i indirip onunla kurun. |
+| EXIT 15 | `%USERPROFILE%\.sql-mcp` içinde başka mimaride eski bir kurulum var. Klasörü silip `install.cmd`'yi tekrar çalıştırın. |
+| 32-bit'te bağlantı | 32-bit pakette Microsoft'un gömülü sürücüsü (`mssql-python`) yoktur, kurulu ODBC sürücüsü kullanılır. Windows'un kendi "SQL Server" sürücüsü her zaman vardır ve Windows Authentication ile çalışır. Daha iyi tip desteği için "ODBC Driver 18 for SQL Server" önerilir (64-bit kurulumu 32-bit sürücüyü de içerir). |
 | `Login failed for user 'DOMAIN\kullanici'` | Windows kullanıcınızın SQL Server'da login'i yok. DBA'dan yetki isteyin. |
 | `Cannot generate SSPI context` | Kerberos/SPN sorunu. Adresi FQDN olarak deneyin (`dbsrv01.sirket.local\SQL2017`) veya `sql` tipini kullanın. |
 | `Login timeout expired` / `Named Pipes Provider` | Adres, instance adı veya port yanlış; ya da firewall/SQL Browser kapalı. `SUNUCU,PORT` biçimini deneyin. |
