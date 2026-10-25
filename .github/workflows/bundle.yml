@@ -1,50 +1,57 @@
 name: Windows bundle
 
-# Builds release/sql-mcp-simple-windows-x64.zip on Windows, installs it offline with install.cmd on
-# every supported Python, tests Windows authentication against SQL Server Express, then publishes
-# the zip as the asset of the "latest" GitHub release.
+# Tests the committed download package release/sql-mcp-simple-windows-x64.zip on real Windows:
+# offline install with install.cmd on every supported Python, MCP stdio smoke test, and Windows
+# authentication against SQL Server Express. Rebuild the zip with: python scripts/build_bundle.py
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["src/**", "bundle/**", "scripts/build_bundle.py", "pyproject.toml", ".github/workflows/bundle.yml"]
-
-permissions:
-  contents: write
+    paths: ["release/**", "bundle/**", "scripts/build_bundle.py", ".github/workflows/bundle.yml"]
 
 jobs:
-  build:
+  freshness:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install uv
-      - run: python scripts/build_bundle.py
-      - uses: actions/upload-artifact@v4
-        with:
-          name: bundle
-          path: release/sql-mcp-simple-windows-x64.zip
+      - name: The zip must contain the current source
+        shell: python
+        run: |
+          import io, pathlib, sys, zipfile
+          norm = lambda b: b.replace(b"\r\n", b"\n")
+          outer = zipfile.ZipFile("release/sql-mcp-simple-windows-x64.zip")
+          names = outer.namelist()
+          stale = []
+          for f in ("install.cmd", "KURULUM_REHBERI.md"):
+              if norm(outer.read(f"sql-mcp-simple/{f}")) != norm(pathlib.Path("bundle", f).read_bytes()):
+                  stale.append(f)
+          whl = next(n for n in names if n.startswith("sql-mcp-simple/wheelhouse/sql_mcp_simple-"))
+          inner = zipfile.ZipFile(io.BytesIO(outer.read(whl)))
+          for src in pathlib.Path("src/sql_mcp").glob("*.py"):
+              if norm(inner.read(f"sql_mcp/{src.name}")) != norm(src.read_bytes()):
+                  stale.append(str(src))
+          if stale:
+              sys.exit("zip is stale, run scripts/build_bundle.py: " + ", ".join(stale))
+          print("zip is up to date")
 
   install-test:
-    needs: build
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
         python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - uses: actions/download-artifact@v4
-        with:
-          name: bundle
       - name: Unzip
         shell: pwsh
-        run: Expand-Archive sql-mcp-simple-windows-x64.zip -DestinationPath C:\bundle
+        run: Expand-Archive release\sql-mcp-simple-windows-x64.zip -DestinationPath C:\bundle
       - name: Offline install with install.cmd (no network to PyPI)
         shell: cmd
         env:
@@ -63,7 +70,7 @@ jobs:
           & C:\sqlmcp\Scripts\sql-mcp.exe --check | Out-String | Write-Output
           if ($LASTEXITCODE -ne 1) { Write-Error "--check without config must exit 1"; exit 1 }
           @'
-          import asyncio, json, sys
+          import asyncio, json
           from mcp import ClientSession, StdioServerParameters
           from mcp.client.stdio import stdio_client
 
@@ -85,15 +92,12 @@ jobs:
           if ($v -ne "${{ matrix.python }}") { Write-Error "venv uses Python $v, expected ${{ matrix.python }}"; exit 1 }
 
   windows-auth-test:
-    needs: build
     runs-on: windows-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v4
-        with:
-          name: bundle
       - name: Install SQL Server Express
         shell: pwsh
         run: |
@@ -104,11 +108,11 @@ jobs:
         env:
           SQL_MCP_HOME: C:\sqlmcp
         run: |
-          powershell -Command "Expand-Archive sql-mcp-simple-windows-x64.zip -DestinationPath C:\bundle"
+          powershell -Command "Expand-Archive release\sql-mcp-simple-windows-x64.zip -DestinationPath C:\bundle"
           cd /d C:\bundle\sql-mcp-simple
           call install.cmd
           if errorlevel 1 exit /b 1
-      - name: Windows authentication - both drivers
+      - name: Windows authentication - all drivers
         shell: pwsh
         run: |
           $env:SQL_MCP_SERVER = "localhost\SQLEXPRESS"
@@ -121,21 +125,3 @@ jobs:
             $info = ($out | ConvertFrom-Json).connections.default.server
             if ($info.auth_scheme -notin @("NTLM", "KERBEROS")) { Write-Error "unexpected auth_scheme $($info.auth_scheme)"; exit 1 }
           }
-
-  publish:
-    needs: [install-test, windows-auth-test]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: bundle
-      - name: Publish as the "latest" release asset
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          gh release view latest >/dev/null 2>&1 || gh release create latest --title "Windows x64 kurulum paketi" \
-            --notes "Offline kurulum paketi. Icindeki KURULUM_REHBERI.md dosyasini GitHub Copilot ajanina uygulatin." \
-            --target "${GITHUB_SHA}"
-          gh release upload latest sql-mcp-simple-windows-x64.zip --clobber
-          gh release edit latest --notes "Offline kurulum paketi (commit ${GITHUB_SHA::7}). Icindeki KURULUM_REHBERI.md dosyasini GitHub Copilot ajanina uygulatin."

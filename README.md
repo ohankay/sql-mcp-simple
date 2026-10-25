@@ -31,11 +31,11 @@ sql-mcp ise:
 
 ### Hazır paket (önerilen, internet gerekmez)
 
-1. **[sql-mcp-simple-windows-x64.zip](https://github.com/ohankay/sql-mcp-simple/releases/latest/download/sql-mcp-simple-windows-x64.zip)** dosyasını indirip bir klasöre açın.
+1. **[sql-mcp-simple-windows-x64.zip](https://github.com/ohankay/sql-mcp-simple/raw/main/release/sql-mcp-simple-windows-x64.zip)** dosyasını indirip bir klasöre açın.
 2. Klasörü VS Code'da açın, Copilot Chat → **Agent** moduna şunu yazın:
    `KURULUM_REHBERI.md dosyasını oku ve "Ajan için kurulum adımları" bölümünü sırayla uygula.`
 
-Paketin içinde Python 3.10–3.14 için gereken tüm bağımlılıklar (`wheelhouse`), `install.cmd`, kurulum rehberi ve VS Code şablonları vardır. Paket her değişiklikte GitHub Actions üzerinde gerçek bir Windows makinede derlenir. Ardından 5 Python sürümünde offline kurulumu ve SQL Server Express'e Windows Authentication ile bağlantısı test edilir.
+Paketin içinde Python 3.10–3.14 için gereken tüm bağımlılıklar (`wheelhouse`), `install.cmd`, kurulum rehberi ve VS Code şablonları vardır. Repodaki bu zip her değişiklikte GitHub Actions üzerinde gerçek bir Windows makinede test edilir: 5 Python sürümünde offline kurulum ve SQL Server Express'e Windows Authentication ile bağlantı. Zip'i yeniden üretmek için: `pip install uv && python scripts/build_bundle.py`.
 
 ### Elle kurulum (internet varsa)
 

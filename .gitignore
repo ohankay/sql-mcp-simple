@@ -11,4 +11,3 @@ htmlcov/
 # local secrets / personal configs
 *.local.json
 .env
-release/
