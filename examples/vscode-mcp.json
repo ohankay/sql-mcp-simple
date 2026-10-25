@@ -1,0 +1,31 @@
+{
+  // VS Code MCP config (workspace). For all workspaces: "MCP: Open User Configuration".
+  // Windows: point "command" at the venv you installed sql-mcp into.
+  "inputs": [
+    { "type": "promptString", "id": "sql-password", "description": "SQL Server password", "password": true }
+  ],
+  "servers": {
+    // 1) Windows authentication - uses the logged-on Windows user, no password anywhere.
+    "sql": {
+      "type": "stdio",
+      "command": "${userHome}\\.sql-mcp\\Scripts\\sql-mcp.exe",
+      "env": {
+        "SQL_MCP_SERVER": "MYSERVER\\INSTANCE",
+        "SQL_MCP_AUTH": "windows",
+        "SQL_MCP_DATABASE": "master"
+      }
+    },
+    // 2) SQL login - VS Code asks for the password once and keeps it in its secret storage.
+    "sql-login": {
+      "type": "stdio",
+      "command": "${userHome}\\.sql-mcp\\Scripts\\sql-mcp.exe",
+      "env": {
+        "SQL_MCP_SERVER": "10.0.0.15,1433",
+        "SQL_MCP_AUTH": "sql",
+        "SQL_MCP_USER": "app_user",
+        "SQL_MCP_PASSWORD": "${input:sql-password}",
+        "SQL_MCP_DATABASE": "MyDb"
+      }
+    }
+  }
+}

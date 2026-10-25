@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sql-mcp-simple"
+version = "1.0.0"
+description = "MCP server for Microsoft SQL Server 2017/2019/2022 - queries, DML/DDL, stored procedures, SQL Agent jobs, admin. SQL or Windows authentication."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "ohankay" }]
+keywords = ["mcp", "sql server", "mssql", "vscode", "copilot", "agent"]
+dependencies = [
+    "mcp>=1.10,<2",
+    "anyio>=4",
+    "pyodbc>=5.0",
+    "mssql-python>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+sql-mcp = "sql_mcp.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: needs a running SQL Server (SQL_MCP_TEST_TARGETS)"]

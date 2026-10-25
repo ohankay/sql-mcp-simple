@@ -1,0 +1,18 @@
+# Test servers: docker compose -f tests/docker-compose.yml up -d
+services:
+  sql2022:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Str0ng!Passw0rd"
+      MSSQL_AGENT_ENABLED: "true"
+      MSSQL_PID: Developer
+    ports: ["14332:1433"]
+  sql2017:
+    image: mcr.microsoft.com/mssql/server:2017-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Str0ng!Passw0rd"
+      MSSQL_AGENT_ENABLED: "true"
+      MSSQL_PID: Developer
+    ports: ["14317:1433"]

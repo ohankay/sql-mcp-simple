@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      sql2022:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "Str0ng!Passw0rd"
+          MSSQL_AGENT_ENABLED: "true"
+          MSSQL_PID: Developer
+        ports: ["14332:1433"]
+      sql2017:
+        image: mcr.microsoft.com/mssql/server:2017-latest
+        env:
+          ACCEPT_EULA: "Y"
+          SA_PASSWORD: "Str0ng!Passw0rd"
+          MSSQL_AGENT_ENABLED: "true"
+          MSSQL_PID: Developer
+        ports: ["14317:1433"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ODBC Driver 18
+        run: |
+          curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/$(lsb_release -rs)/prod $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc
+      - run: pip install -e ".[dev]"
+      - name: Wait for SQL Server
+        run: |
+          for port in 14332 14317; do
+            for i in $(seq 1 60); do
+              python -c "import mssql_python; mssql_python.connect('Server=localhost,$port;UID=sa;PWD=Str0ng!Passw0rd;Encrypt=yes;TrustServerCertificate=yes')" && break
+              sleep 2
+            done
+          done
+      - name: Tests (SQL Server 2017 + 2022, pyodbc + mssql-python)
+        env:
+          SQL_MCP_TEST_TARGETS: "sql2022=localhost,14332;sql2017=localhost,14317"
+          SQL_MCP_TEST_PASSWORD: "Str0ng!Passw0rd"
+        run: pytest -v
+
+  unit-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest -v tests/test_unit.py tests/test_e2e_stdio.py

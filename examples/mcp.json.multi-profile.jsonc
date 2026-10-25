@@ -1,0 +1,12 @@
+{
+  // One MCP server, several SQL Servers: profiles come from a JSON file.
+  "servers": {
+    "sql": {
+      "type": "stdio",
+      "command": "${userHome}\\.sql-mcp\\Scripts\\sql-mcp.exe",
+      "env": {
+        "SQL_MCP_CONFIG": "${userHome}\\.sql-mcp\\connections.json"
+      }
+    }
+  }
+}
