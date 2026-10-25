@@ -47,8 +47,13 @@ Gereksinim: Python 3.10–3.14.
 
 ```bat
 py -m venv %USERPROFILE%\.sql-mcp
-%USERPROFILE%\.sql-mcp\Scripts\pip install "sql-mcp-simple[bundled-driver] @ git+https://github.com/ohankay/sql-mcp-simple.git"
+rem 64-bit Python:
+%USERPROFILE%\.sql-mcp\Scripts\pip install --prefer-binary "sql-mcp-simple[bundled-driver] @ git+https://github.com/ohankay/sql-mcp-simple.git"
+rem 32-bit Python (Microsoft'un gomulu surucusu yok, kurulu ODBC surucusu kullanilir):
+%USERPROFILE%\.sql-mcp\Scripts\pip install --prefer-binary "sql-mcp-simple @ git+https://github.com/ohankay/sql-mcp-simple.git"
 ```
+
+`--prefer-binary` önemlidir: bazı paketlerin (ör. `cryptography`) en yeni sürümünün 32-bit Windows için hazır paketi yoktur; bu bayrak olmadan pip derlemeye çalışır ve başarısız olur.
 
 Sürücü: Ekstra kurulum **gerekmez**. Sırayla şunlar denenir:
 
